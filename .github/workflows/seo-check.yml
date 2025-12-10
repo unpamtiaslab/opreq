@@ -1,0 +1,104 @@
+name: SEO Monitor
+
+on:
+  schedule:
+    # Check SEO metrics setiap Senin jam 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+jobs:
+  seo-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate sitemap.xml
+        run: |
+          echo "🔍 Checking sitemap.xml..."
+          if [ -f "sitemap.xml" ]; then
+            echo "✅ sitemap.xml exists"
+            xmllint --noout sitemap.xml && echo "✅ sitemap.xml is valid XML" || echo "❌ sitemap.xml has XML errors"
+          else
+            echo "❌ sitemap.xml not found"
+            exit 1
+          fi
+
+      - name: Validate robots.txt
+        run: |
+          echo "🔍 Checking robots.txt..."
+          if [ -f "robots.txt" ]; then
+            echo "✅ robots.txt exists"
+            cat robots.txt
+          else
+            echo "❌ robots.txt not found"
+            exit 1
+          fi
+
+      - name: Check meta tags
+        run: |
+          echo "🔍 Checking meta tags in index.html..."
+          if grep -q '<meta name="description"' index.html; then
+            echo "✅ Meta description found"
+          else
+            echo "⚠️ Meta description missing"
+          fi
+          
+          if grep -q '<meta property="og:' index.html; then
+            echo "✅ Open Graph tags found"
+          else
+            echo "⚠️ Open Graph tags missing"
+          fi
+          
+          if grep -q '<meta name="twitter:' index.html; then
+            echo "✅ Twitter Card tags found"
+          else
+            echo "⚠️ Twitter Card tags missing"
+          fi
+
+      - name: Check JSON-LD
+        run: |
+          echo "🔍 Checking structured data..."
+          if grep -q 'application/ld+json' index.html; then
+            echo "✅ JSON-LD structured data found"
+          else
+            echo "⚠️ JSON-LD structured data missing"
+          fi
+
+      - name: Create SEO Report
+        run: |
+          echo "# 📊 SEO Health Report" > seo-report.md
+          echo "" >> seo-report.md
+          echo "**Date**: $(date)" >> seo-report.md
+          echo "" >> seo-report.md
+          echo "## Checklist" >> seo-report.md
+          echo "" >> seo-report.md
+          
+          # Check files
+          [ -f "sitemap.xml" ] && echo "- [x] sitemap.xml exists" >> seo-report.md || echo "- [ ] sitemap.xml missing" >> seo-report.md
+          [ -f "robots.txt" ] && echo "- [x] robots.txt exists" >> seo-report.md || echo "- [ ] robots.txt missing" >> seo-report.md
+          
+          # Check meta tags
+          grep -q '<meta name="description"' index.html && echo "- [x] Meta description" >> seo-report.md || echo "- [ ] Meta description missing" >> seo-report.md
+          grep -q '<meta property="og:' index.html && echo "- [x] Open Graph tags" >> seo-report.md || echo "- [ ] Open Graph tags missing" >> seo-report.md
+          grep -q '<meta name="twitter:' index.html && echo "- [x] Twitter Cards" >> seo-report.md || echo "- [ ] Twitter Cards missing" >> seo-report.md
+          grep -q 'application/ld+json' index.html && echo "- [x] Structured Data" >> seo-report.md || echo "- [ ] Structured Data missing" >> seo-report.md
+          
+          echo "" >> seo-report.md
+          echo "## URLs" >> seo-report.md
+          echo "- Website: https://unpamtiaslab.github.io/opreq/" >> seo-report.md
+          echo "- Sitemap: https://unpamtiaslab.github.io/opreq/sitemap.xml" >> seo-report.md
+          echo "- Robots: https://unpamtiaslab.github.io/opreq/robots.txt" >> seo-report.md
+          
+          cat seo-report.md
+
+      - name: Upload SEO Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-report
+          path: seo-report.md

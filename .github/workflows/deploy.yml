@@ -1,0 +1,77 @@
+name: Auto Update and Deploy
+
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    # Update sitemap setiap hari jam 00:00 UTC (07:00 WIB)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  update-sitemap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update sitemap.xml
+        run: |
+          # Get current date in ISO format
+          CURRENT_DATE=$(date +"%Y-%m-%d")
+          
+          # Update lastmod in sitemap.xml
+          sed -i "s|<lastmod>.*</lastmod>|<lastmod>${CURRENT_DATE}</lastmod>|g" sitemap.xml
+          
+          echo "Sitemap updated with date: ${CURRENT_DATE}"
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add sitemap.xml
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update sitemap [skip ci]" && git push)
+
+  deploy:
+    needs: update-sitemap
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  notify-success:
+    needs: [update-sitemap, deploy]
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Deployment Success
+        run: |
+          echo "✅ Website successfully deployed!"
+          echo "🔗 URL: https://unpamtiaslab.github.io/opreq/"
+          echo "📅 Date: $(date)"
