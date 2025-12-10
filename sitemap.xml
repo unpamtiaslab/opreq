@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://unpamtiaslab.github.io/opreq/</loc>
+    <lastmod>2025-12-10</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://unpamtiaslab.github.io/opreq/images/aslab_logo.webp</image:loc>
+      <image:title>Logo ASLAB TI UNPAM</image:title>
+      <image:caption>Open Recruitment Asisten Laboratorium UNPAM 2025</image:caption>
+    </image:image>
+  </url>
+</urlset>

@@ -1,0 +1,17 @@
+# robots.txt for ASLAB TI UNPAM - Open Recruitment 2025
+# https://unpamtiaslab.github.io/opreq/
+
+User-agent: *
+Allow: /
+Allow: /images/
+Allow: /style/
+Allow: /script/
+
+# Disallow admin or config files
+Disallow: /config.json
+
+# Sitemap location
+Sitemap: https://unpamtiaslab.github.io/opreq/sitemap.xml
+
+# Crawl delay (optional - helps with server load)
+Crawl-delay: 10
