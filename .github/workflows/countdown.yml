@@ -1,0 +1,52 @@
+name: Countdown Update
+
+on:
+  schedule:
+    # Update countdown status setiap jam
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check-deadline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check countdown deadline
+        run: |
+          # Get deadline from config.json
+          DEADLINE_DATE=$(jq -r '.countdown_deadline.date' config.json)
+          DEADLINE_TIME=$(jq -r '.countdown_deadline.time' config.json)
+          
+          echo "📅 Deadline: $DEADLINE_DATE $DEADLINE_TIME"
+          
+          # Convert to timestamp
+          DEADLINE_TS=$(date -d "$DEADLINE_DATE $DEADLINE_TIME" +%s)
+          CURRENT_TS=$(date +%s)
+          
+          # Calculate difference
+          DIFF=$((DEADLINE_TS - CURRENT_TS))
+          
+          if [ $DIFF -lt 0 ]; then
+            echo "⏰ Deadline has passed!"
+            echo "DEADLINE_PASSED=true" >> $GITHUB_ENV
+          else
+            DAYS=$((DIFF / 86400))
+            HOURS=$(((DIFF % 86400) / 3600))
+            echo "⏳ Time remaining: $DAYS days, $HOURS hours"
+            echo "DEADLINE_PASSED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Update README if deadline passed
+        if: env.DEADLINE_PASSED == 'true'
+        run: |
+          # Create or update status badge
+          echo "⚠️ Pendaftaran telah ditutup" > DEADLINE_STATUS.txt
+          
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add DEADLINE_STATUS.txt
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update: Deadline passed" && git push)
