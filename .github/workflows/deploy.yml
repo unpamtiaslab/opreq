@@ -47,6 +47,9 @@ jobs:
   deploy:
     needs: update-sitemap
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -75,3 +78,4 @@ jobs:
           echo "✅ Website successfully deployed!"
           echo "🔗 URL: https://unpamtiaslab.github.io/opreq/"
           echo "📅 Date: $(date)"
+
