@@ -36,7 +36,6 @@ body {
     overflow-x: hidden;
 }
 
-/* Loading Screen */
 .loading-screen {
     position: fixed;
     top: 0;
@@ -74,7 +73,6 @@ body {
     font-weight: 500;
 }
 
-/* Error and Success Messages */
 .error-message,
 .success-message {
     position: fixed;
@@ -611,7 +609,6 @@ body {
     font-size: 0.9em;
 }
 
-/* Countdown Timer */
 .countdown-section {
     background: white;
     padding: 20px;
@@ -658,7 +655,6 @@ body {
     margin-top: 5px;
 }
 
-/* FAQ Section */
 .faq-section {
     background: white;
     padding: 30px;
@@ -748,7 +744,6 @@ body {
     margin: 0;
 }
 
-/* Share Section */
 .share-section {
     background: white;
     padding: 25px;
