@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://api.qrserver.com; connect-src 'self' https://api.qrserver.com; font-src 'self' data:;"
+    />
+    <meta
+      name="description"
+      content="Open Recruitment Asisten Laboratorium - Bergabunglah bersama kami!"
+    />
+    <meta name="theme-color" content="#1e3c72" />
+    <link rel="stylesheet" href="style/style.css" />
+    <script src="script/script.js" defer></script>
+    <link rel="icon" type="image/png" href="images/favicon.ico" />
+    <title>Open Recruitment ASLAB | Asisten Laboratorium</title>
+  </head>
+  <body>
+    <div id="loadingScreen" class="loading-screen">
+      <div class="spinner"></div>
+      <p>Memuat data...</p>
+    </div>
+    <div id="errorMessage" class="error-message" style="display: none"></div>
+    <div class="poster">
+      <div class="header">
+        <div class="logo-section">
+          <div class="logo-left">
+            <img
+              src="images/filkom.webp"
+              alt="UNPAM Logo"
+              style="height: 40px; vertical-align: middle; margin-right: 10px"
+            />
+          </div>
+          <div class="logo-right">
+            <img
+              src="images/aslab_logo.webp"
+              alt="ASLAB Logo"
+              style="height: 40px; vertical-align: middle; margin-right: 10px"
+            />
+          </div>
+        </div>
+        <div class="title">
+          <h1>OPEN<br />RECRUITMENT</h1>
+          <div class="subtitle">ASISTEN LABORATORIUM</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="left-section">
+          <div class="card">
+            <h2>PERSYARATAN</h2>
+            <ul id="reqList"></ul>
+          </div>
+
+          <div class="card">
+            <h2>BENEFIT</h2>
+            <ul id="benefitList"></ul>
+          </div>
+
+          <a
+            id="registerBtn"
+            href="#"
+            class="register-btn"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <span class="btn-icon">🚀</span>
+            <span>DAFTAR DISINI !</span>
+            <span class="btn-badge">Gratis</span>
+          </a>
+
+          <!-- Countdown Timer -->
+          <div class="countdown-section">
+            <h3>⏰ Waktu Pendaftaran Tersisa</h3>
+            <div id="countdown" class="countdown">
+              <div class="countdown-item">
+                <span id="days" class="countdown-number">00</span>
+                <span class="countdown-label">Hari</span>
+              </div>
+              <div class="countdown-item">
+                <span id="hours" class="countdown-number">00</span>
+                <span class="countdown-label">Jam</span>
+              </div>
+              <div class="countdown-item">
+                <span id="minutes" class="countdown-number">00</span>
+                <span class="countdown-label">Menit</span>
+              </div>
+              <div class="countdown-item">
+                <span id="seconds" class="countdown-number">00</span>
+                <span class="countdown-label">Detik</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="qr-section">
+            <div class="qr-code">
+              <div id="qrLoading" class="qr-loading">Memuat QR...</div>
+              <img
+                id="qrImage"
+                src=""
+                alt="QR Code Pendaftaran ASLAB"
+                style="width: 180px; height: 180px; display: none"
+              />
+            </div>
+            <div class="qr-actions">
+              <button id="saveQRBtn" class="save-qr-btn" title="Unduh QR Code">
+                <span>💾</span> SIMPAN QR
+              </button>
+              <button
+                id="copyLinkBtn"
+                class="copy-link-btn"
+                title="Salin Link Pendaftaran"
+              >
+                <span>🔗</span> SALIN LINK
+              </button>
+            </div>
+            <br />
+            <br />
+            <p style="color: #333; font-weight: 500; font-size: 0.9em">
+              Pelaksanaan seleksi dilakukan secara luring di lokasi yang telah
+              ditentukan
+            </p>
+          </div>
+        </div>
+
+        <div class="right-section">
+          <div class="timeline">
+            <h2>TIMELINE</h2>
+          </div>
+
+          <div class="contact">
+            <h3>CONTACT PERSON</h3>
+            <div class="contact-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FAQ Section -->
+      <div class="faq-section">
+        <h2>❓ Pertanyaan yang Sering Diajukan (FAQ)</h2>
+        <div class="faq-container">
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Apa saja persyaratan untuk mendaftar?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Mahasiswa aktif semester 3-6 dengan IPK minimal 3.0, bersedia
+                mengikuti proses seleksi bertahap, serta memiliki dedikasi
+                tinggi dan motivasi yang kuat.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Bagaimana proses seleksinya?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Proses seleksi meliputi: Wawancara, Tes Tulis, dan Tes Praktik.
+                Semua dilakukan secara luring di lokasi yang telah ditentukan.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Apakah ada biaya pendaftaran?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Tidak ada biaya pendaftaran! Program ini 100% GRATIS untuk
+                seluruh mahasiswa yang memenuhi persyaratan.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question">
+              <span>Kapan pengumuman hasil seleksi?</span>
+              <span class="faq-icon">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Pengumuman hasil seleksi akan diumumkan pada tanggal 26
+                Desember. Pantau terus akun Instagram dan website kami!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Share Section -->
+      <div class="share-section">
+        <h3>📢 Bagikan Informasi Ini</h3>
+        <div class="share-buttons">
+          <button
+            id="shareWA"
+            class="share-btn wa-btn"
+            title="Share via WhatsApp"
+          >
+            <span>📱</span> WhatsApp
+          </button>
+          <button
+            id="shareTelegram"
+            class="share-btn telegram-btn"
+            title="Share via Telegram"
+          >
+            <span>✈️</span> Telegram
+          </button>
+          <button
+            id="shareTwitter"
+            class="share-btn twitter-btn"
+            title="Share via Twitter"
+          >
+            <span>🐦</span> Twitter
+          </button>
+          <button
+            id="shareFB"
+            class="share-btn fb-btn"
+            title="Share via Facebook"
+          >
+            <span>👥</span> Facebook
+          </button>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="footer-links">
+          <span id="footerCapt"></span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

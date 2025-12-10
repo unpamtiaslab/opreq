@@ -1,0 +1,80 @@
+{
+    "countdown_deadline": {
+        "date": "19 Desember 2025",
+        "time": "23:59:59"
+    },
+    "benefit": [
+        "Menambah Value untuk Pengalaman Kerja",
+        "Kesempatan Mengembangkan Softskill & Hardskill",
+        "Partisipasi dalam Penelitian dan Project"
+    ],
+    "contacts": [
+        {
+            "name": "MARSEL",
+            "phone": "0856-9236-9200",
+            "whatsapp": "https://wa.me/"
+        },
+        {
+            "name": "NATHAN",
+            "phone": "0851-7672-7250",
+            "whatsapp": "https://wa.me/"
+        },
+        {
+            "name": "SYAEFUL",
+            "phone": "0813-1985-1597",
+            "whatsapp": "https://wa.me/"
+        }
+    ],
+    "footer_text": [
+        {
+            "icon": "📱",
+            "text": "aslabti_unpam"
+        },
+        {
+            "icon": "🌐",
+            "text": "aslab.octavianaanugrah.com"
+        },
+        {
+            "icon": "📞",
+            "text": "0812-8973-5906"
+        }
+    ],
+    "persyaratan": [
+        "Mahasiswa Aktif Semester 3-6",
+        "IPK Minimal 3.0",
+        "Bersedia Mengikuti Proses Seleksi Bertahap",
+        "Memiliki Dedikasi Tinggi dan Motivasi yang Kuat"
+    ],
+    "text_to_qr": "https://docs.google.com/forms/d/e/1FAIpQLSds3r7dBDsAx3PpJhpXdjX3DBkEurzD7vvx4VFB3iuelEowiw/viewform",
+    "timeline": [
+        {
+            "tenggat": "19 Desember 2025",
+            "time": "23:59:59"
+        },
+        {
+            "date": "4-19 Desember",
+            "icon": "📝",
+            "title": "Pendaftaran"
+        },
+        {
+            "date": "22 Desember",
+            "icon": "💬",
+            "title": "Wawancara"
+        },
+        {
+            "date": "22 Desember",
+            "icon": "📄",
+            "title": "Tes Tulis"
+        },
+        {
+            "date": "23 Desember",
+            "icon": "💻",
+            "title": "Tes Praktik"
+        },
+        {
+            "date": "26 Desember",
+            "icon": "📢",
+            "title": "Pengumuman"
+        }
+    ]
+}
