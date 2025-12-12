@@ -9,9 +9,18 @@ Allow: /script/
 
 # Disallow admin or config files
 Disallow: /config.json
+Disallow: /config.json
+Disallow: /sw.js
+Disallow: /manifest.json
+Disallow: /README.md
+Disallow: /SECURITY_AUDIT.md
+
+Disallow: /*?*
+Disallow: /*#*
 
 # Sitemap location
 Sitemap: https://unpamtiaslab.github.io/opreq/sitemap.xml
 
 # Crawl delay (optional - helps with server load)
-Crawl-delay: 10
+Crawl-delay: 5
+
