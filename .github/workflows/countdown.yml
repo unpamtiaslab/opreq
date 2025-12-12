@@ -17,17 +17,37 @@ jobs:
 
       - name: Check countdown deadline
         run: |
-          # Get deadline from config.json
           DEADLINE_DATE=$(jq -r '.countdown_deadline.date' config.json)
           DEADLINE_TIME=$(jq -r '.countdown_deadline.time' config.json)
           
           echo "📅 Deadline: $DEADLINE_DATE $DEADLINE_TIME"
           
-          # Convert to timestamp
-          DEADLINE_TS=$(date -d "$DEADLINE_DATE $DEADLINE_TIME" +%s)
+          DEADLINE_DATE_EN=$(echo "$DEADLINE_DATE" | sed \
+            -e 's/[Jj]anuari/January/g' \
+            -e 's/[Ff]ebruari/February/g' \
+            -e 's/[Mm]aret/March/g' \
+            -e 's/[Mm]ei/May/g' \
+            -e 's/[Jj]uni/June/g' \
+            -e 's/[Jj]uli/July/g' \
+            -e 's/[Aa]gustus/August/g' \
+            -e 's/[Ss]eptember/September/g' \
+            -e 's/[Oo]ktober/October/g' \
+            -e 's/[Nn]ovember/November/g' \
+            -e 's/[Dd]esember/December/g')
+          
+          if [ "$DEADLINE_DATE" != "$DEADLINE_DATE_EN" ]; then
+            echo "🔄 Converted to: $DEADLINE_DATE_EN $DEADLINE_TIME"
+          fi
+          
+          DEADLINE_TS=$(date -d "$DEADLINE_DATE_EN $DEADLINE_TIME" +%s 2>/dev/null)
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Error: Invalid date format. Please use format like '19 December 2025' or '19 Desember 2025'"
+            exit 1
+          fi
+          
           CURRENT_TS=$(date +%s)
           
-          # Calculate difference
           DIFF=$((DEADLINE_TS - CURRENT_TS))
           
           if [ $DIFF -lt 0 ]; then
@@ -36,8 +56,11 @@ jobs:
           else
             DAYS=$((DIFF / 86400))
             HOURS=$(((DIFF % 86400) / 3600))
-            echo "⏳ Time remaining: $DAYS days, $HOURS hours"
+            MINUTES=$(((DIFF % 3600) / 60))
+            echo "⏳ Time remaining: $DAYS days, $HOURS hours, $MINUTES minutes"
             echo "DEADLINE_PASSED=false" >> $GITHUB_ENV
+            echo "DAYS_REMAINING=$DAYS" >> $GITHUB_ENV
+            echo "HOURS_REMAINING=$HOURS" >> $GITHUB_ENV
           fi
 
       - name: Update README if deadline passed
