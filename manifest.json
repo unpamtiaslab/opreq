@@ -1,0 +1,63 @@
+{
+  "name": "Open Recruitment ASLAB UNPAM 2025",
+  "short_name": "ASLAB OPREQ",
+  "description": "Website rekrutmen Asisten Laboratorium TI UNPAM dengan fitur notifikasi countdown deadline",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1e3c72",
+  "theme_color": "#1e3c72",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./images/aslab_logo.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./images/aslab_logo.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "education",
+    "recruitment"
+  ],
+  "lang": "id",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Lihat Timeline",
+      "short_name": "Timeline",
+      "description": "Lihat timeline pendaftaran ASLAB",
+      "url": "./#timeline",
+      "icons": [
+        {
+          "src": "./images/aslab_logo.webp",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Download QR",
+      "short_name": "QR Code",
+      "description": "Download QR Code pendaftaran",
+      "url": "./#qr",
+      "icons": [
+        {
+          "src": "./images/aslab_logo.webp",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "permissions": [
+    "notifications"
+  ]
+}

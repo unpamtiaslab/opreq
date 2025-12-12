@@ -1,13 +1,368 @@
+const StorageManager = {
+  dbName: "AslabRecruitmentDB",
+  dbVersion: 1,
+  storeName: "userData",
+  db: null,
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.dbVersion);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve(this.db);
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          const objectStore = db.createObjectStore(this.storeName, {
+            keyPath: "id",
+          });
+          objectStore.createIndex("timestamp", "timestamp", { unique: false });
+        }
+      };
+    });
+  },
+
+  async saveData(key, value) {
+    try {
+      if (!this.db) await this.init();
+
+      const transaction = this.db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      const data = {
+        id: key,
+        value: value,
+        timestamp: Date.now(),
+      };
+
+      return new Promise((resolve, reject) => {
+        const request = store.put(data);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.warn("IndexedDB error, fallback to localStorage:", error);
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  },
+
+  async getData(key) {
+    try {
+      if (!this.db) await this.init();
+
+      const transaction = this.db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+
+      return new Promise((resolve, reject) => {
+        const request = store.get(key);
+        request.onsuccess = () =>
+          resolve(request.result ? request.result.value : null);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.warn("IndexedDB error, fallback to localStorage:", error);
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    }
+  },
+
+  async getAllData() {
+    try {
+      if (!this.db) await this.init();
+
+      const transaction = this.db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+
+      return new Promise((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.warn("IndexedDB error:", error);
+      return [];
+    }
+  },
+
+  async clearData(key) {
+    try {
+      if (!this.db) await this.init();
+
+      const transaction = this.db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+
+      return new Promise((resolve, reject) => {
+        const request = store.delete(key);
+        request.onsuccess = () => resolve(true);
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.warn("IndexedDB error:", error);
+      localStorage.removeItem(key);
+    }
+  },
+};
+
+const NotificationManager = {
+  permission: "default",
+  enabled: false,
+  notificationsSent: [],
+
+  async requestPermission() {
+    if (!("Notification" in window)) {
+      console.warn("Browser tidak support notifikasi");
+      return false;
+    }
+
+    if (Notification.permission === "granted") {
+      this.permission = "granted";
+      this.enabled = true;
+      await StorageManager.saveData("notificationPermission", "granted");
+      return true;
+    }
+
+    if (Notification.permission !== "denied") {
+      const permission = await Notification.requestPermission();
+      this.permission = permission;
+      this.enabled = permission === "granted";
+      await StorageManager.saveData("notificationPermission", permission);
+
+      if (permission === "granted") {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'SCHEDULE_NOTIFICATION',
+            payload: {
+              title: "🎉 Notifikasi Aktif!",
+              body: "Anda akan mendapat pengingat countdown deadline pendaftaran ASLAB walaupun browser ditutup!",
+              delay: 1000
+            }
+          });
+        } else {
+          this.sendNotification(
+            "🎉 Notifikasi Aktif!",
+            "Anda akan mendapat pengingat countdown deadline pendaftaran ASLAB"
+          );
+        }
+      }
+
+      return permission === "granted";
+    }
+
+    return false;
+  },
+
+  async checkPermission() {
+    if ("Notification" in window) {
+      this.permission = Notification.permission;
+      this.enabled = this.permission === "granted";
+
+      const savedPermission = await StorageManager.getData(
+        "notificationPermission"
+      );
+      if (savedPermission === "granted" && this.permission !== "granted") {
+        this.enabled = false;
+      }
+    }
+    return this.enabled;
+  },
+
+  sendNotification(title, body, options = {}) {
+    if (!this.enabled || this.permission !== "granted") return;
+
+    const safeTitle = String(title).substring(0, 100);
+    const safeBody = String(body).substring(0, 500);
+
+    const notificationKey = `${safeTitle}-${safeBody}`;
+    const lastSent = this.notificationsSent.find((n) => n.key === notificationKey);
+
+    if (lastSent && Date.now() - lastSent.timestamp < 3600000) {
+      return;
+    }
+
+    const defaultOptions = {
+      icon: "./images/aslab_logo.webp",
+      badge: "./images/favicon.ico",
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+      ...options,
+    };
+
+    try {
+      const notification = new Notification(safeTitle, {
+        body: safeBody,
+        ...defaultOptions,
+      });
+
+      this.notificationsSent.push({
+        key: notificationKey,
+        timestamp: Date.now(),
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+
+      setTimeout(() => notification.close(), 10000);
+    } catch (error) {
+      console.warn("Error sending notification:", error);
+    }
+  },
+
+  async sendCountdownNotification(daysLeft) {
+    if (!this.enabled) return;
+
+    const notificationConfig = [
+      { days: 7, title: "⚠️ 1 Minggu Lagi!", message: "Pendaftaran ASLAB ditutup dalam 7 hari" },
+      { days: 3, title: "🔔 3 Hari Lagi!", message: "Segera daftar! Hanya 3 hari tersisa" },
+      { days: 1, title: "⏰ Besok Terakhir!", message: "Ini hari terakhir pendaftaran ASLAB!" },
+      { days: 0, title: "🚨 Hari Ini Deadline!", message: "Pendaftaran ASLAB ditutup hari ini!" },
+    ];
+
+    const config = notificationConfig.find((c) => c.days === daysLeft);
+    if (config) {
+      const lastNotification = await StorageManager.getData(
+        `notification_day_${daysLeft}`
+      );
+      const today = new Date().toDateString();
+
+      if (!lastNotification || lastNotification !== today) {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'SCHEDULE_NOTIFICATION',
+            payload: {
+              title: config.title,
+              body: config.message,
+              delay: 0
+            }
+          });
+        } else {
+          this.sendNotification(config.title, config.message, {
+            requireInteraction: daysLeft <= 1,
+          });
+        }
+        await StorageManager.saveData(`notification_day_${daysLeft}`, today);
+      }
+    }
+  },
+};
+
+const ServiceWorkerManager = {
+  registration: null,
+  
+  async register() {
+    if (!('serviceWorker' in navigator)) {
+      console.warn('Service Worker not supported');
+      return false;
+    }
+
+    try {
+      this.registration = await navigator.serviceWorker.register('./sw.js', {
+        scope: './'
+      });
+
+      console.log('✅ Service Worker registered:', this.registration.scope);
+
+      this.registration.addEventListener('updatefound', () => {
+        const newWorker = this.registration.installing;
+        console.log('🔄 Service Worker update found');
+
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('🆕 New Service Worker available');
+          }
+        });
+      });
+
+      if ('periodicSync' in this.registration) {
+        try {
+          await this.registration.periodicSync.register('check-deadline', {
+            minInterval: 6 * 60 * 60 * 1000
+          });
+          console.log('✅ Periodic background sync registered');
+        } catch (error) {
+          console.warn('Periodic sync not available:', error);
+        }
+      }
+
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        console.log('📨 Message from SW:', event.data);
+        
+        if (event.data.type === 'COUNTDOWN_UPDATE') {
+          console.log('Countdown update:', event.data.daysLeft);
+        }
+      });
+
+      return true;
+    } catch (error) {
+      console.error('❌ Service Worker registration failed:', error);
+      return false;
+    }
+  },
+
+  async checkForUpdates() {
+    if (this.registration) {
+      await this.registration.update();
+    }
+  },
+
+  async unregister() {
+    if (this.registration) {
+      await this.registration.unregister();
+      console.log('Service Worker unregistered');
+    }
+  },
+
+  async sendMessage(message) {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage(message);
+    }
+  }
+};
+
+
 const sanitizeHTML = (str) => {
+  if (!str) return '';
+  
+  const text = String(str).substring(0, 10000);
+  
   const temp = document.createElement("div");
-  temp.textContent = str;
-  return temp.innerHTML;
+  temp.textContent = text;
+  
+  let sanitized = temp.innerHTML;
+  
+  sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
+  
+  return sanitized;
 };
 
 const isValidURL = (url) => {
   try {
+    if (!url || typeof url !== 'string') return false;
+    
+    const lowerUrl = url.toLowerCase().trim();
+    const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:'];
+    if (dangerousProtocols.some(proto => lowerUrl.startsWith(proto))) {
+      return false;
+    }
+    
     const urlObj = new URL(url);
-    return ["http:", "https:"].includes(urlObj.protocol);
+    
+    if (!["http:", "https:"].includes(urlObj.protocol)) {
+      return false;
+    }
+    
+    const hostname = urlObj.hostname.toLowerCase();
+    const privateHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+    if (privateHosts.includes(hostname)) {
+      console.warn('Private/localhost URLs not allowed');
+      return false;
+    }
+    
+    return true;
   } catch {
     return false;
   }
@@ -72,6 +427,59 @@ const showSuccess = (message) => {
   }, 3000);
 };
 
+(async function init() {
+  const swRegistered = await ServiceWorkerManager.register();
+  
+  if (swRegistered) {
+    console.log('🎉 Service Worker aktif - Notifikasi akan tetap muncul walaupun browser ditutup!');
+  }
+
+  await StorageManager.init();
+  await NotificationManager.checkPermission();
+
+  const visitCount = (await StorageManager.getData("visitCount")) || 0;
+  await StorageManager.saveData("visitCount", visitCount + 1);
+  await StorageManager.saveData("lastVisit", new Date().toISOString());
+
+  console.log(`👋 Welcome! Visit ke-${visitCount + 1}`);
+
+  if (visitCount === 0) {
+    setTimeout(async () => {
+      const notifModal = document.createElement("div");
+      notifModal.className = "notification-modal";
+      notifModal.innerHTML = `
+        <div class="notification-modal-content">
+          <div class="notification-modal-icon">🔔</div>
+          <h3>Aktifkan Notifikasi?</h3>
+          <p>Dapatkan pengingat otomatis saat deadline pendaftaran ASLAB semakin dekat!</p>
+          <div class="notification-modal-buttons">
+            <button id="allowNotification" class="btn-allow">✅ Izinkan</button>
+            <button id="denyNotification" class="btn-deny">❌ Tidak Sekarang</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(notifModal);
+
+      setTimeout(() => notifModal.classList.add("show"), 100);
+
+      document.getElementById("allowNotification").addEventListener("click", async () => {
+        const allowed = await NotificationManager.requestPermission();
+        notifModal.classList.remove("show");
+        setTimeout(() => notifModal.remove(), 300);
+        if (allowed) {
+          showSuccess("✅ Notifikasi berhasil diaktifkan!");
+        }
+      });
+
+      document.getElementById("denyNotification").addEventListener("click", () => {
+        notifModal.classList.remove("show");
+        setTimeout(() => notifModal.remove(), 300);
+        StorageManager.saveData("notificationDenied", true);
+      });
+    }, 3000);
+  }
+})();
+
 toggleLoading(true);
 
 fetch("config.json")
@@ -79,7 +487,8 @@ fetch("config.json")
     if (!response.ok) throw new Error("Gagal memuat konfigurasi");
     return response.json();
   })
-  .then((data) => {
+  .then(async (data) => {
+    await StorageManager.saveData("lastConfigLoad", new Date().toISOString());
     const timelineContainer = document.querySelector(".timeline");
     let timelineHTML = `<h2>TIMELINE</h2>`;
     const year = new Date().getFullYear();
@@ -121,8 +530,10 @@ fetch("config.json")
         url = "https://wa.me/" + encodeURIComponent(num);
       }
 
+      const safeUrl = isValidURL(url) ? url : '#';
+      
       footerCapt.innerHTML += `
-                    <a href="${url}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;">
+                    <a href="${sanitizeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;">
                         ${safeIcon} ${safeText}
                     </a>
                     &nbsp;&nbsp;|&nbsp;&nbsp;
@@ -150,10 +561,12 @@ fetch("config.json")
         waLink = "#";
       }
 
+      const safeWaLink = isValidURL(waLink) ? sanitizeHTML(waLink) : '#';
+      
       contactList.innerHTML += `
                     <div class="contact-item">
                         <strong>${safeName}</strong><br>
-                        <a href="${waLink}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;">
+                        <a href="${safeWaLink}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;">
                             ${safePhone}
                         </a>
                     </div>
@@ -182,7 +595,12 @@ fetch("config.json")
       };
 
       const registerBtn = document.getElementById("registerBtn");
-      registerBtn.href = data.text_to_qr;
+      if (registerBtn && isValidURL(data.text_to_qr)) {
+        registerBtn.href = data.text_to_qr;
+      } else {
+        console.error('Invalid registration URL');
+        if (registerBtn) registerBtn.href = '#';
+      }
     } else {
       showError("URL pendaftaran tidak valid");
     }
@@ -236,6 +654,10 @@ saveQRBtn.addEventListener("click", async (e) => {
     showError("QR Code belum dimuat");
     return;
   }
+
+  const downloadCount = (await StorageManager.getData("qrDownloadCount")) || 0;
+  await StorageManager.saveData("qrDownloadCount", downloadCount + 1);
+  await StorageManager.saveData("lastQRDownload", new Date().toISOString());
 
   saveQRBtn.disabled = true;
   saveQRBtn.innerHTML = "<span>⏳</span> Menyimpan...";
@@ -362,9 +784,15 @@ function initCountdown(deadlineData) {
 
   const deadline = new Date(`${isoDate}T${deadlineTime}`).getTime();
 
-  function updateCountdown() {
+  async function updateCountdown() {
     const now = new Date().getTime();
     const distance = deadline - now;
+
+    const daysLeft = Math.floor(distance / (1000 * 60 * 60 * 24));
+
+    if (daysLeft >= 0 && daysLeft <= 7) {
+      await NotificationManager.sendCountdownNotification(daysLeft);
+    }
 
     if (distance < 0) {
       document.getElementById("countdown").innerHTML =
@@ -416,9 +844,9 @@ document.querySelectorAll(".faq-question").forEach((button) => {
 });
 
 const shareData = {
-  title: "Open Recruitment ASLAB",
-  text: "🎓 Open Recruitment Asisten Laboratorium! Kesempatan emas untuk mengembangkan skill dan pengalaman. Daftar sekarang!",
-  url: window.location.href,
+  title: sanitizeHTML("Open Recruitment ASLAB"),
+  text: sanitizeHTML("🎓 Open Recruitment Asisten Laboratorium! Kesempatan emas untuk mengembangkan skill dan pengalaman. Daftar sekarang!"),
+  url: window.location.origin + window.location.pathname,
 };
 
 document.getElementById("shareWA")?.addEventListener("click", () => {
@@ -491,3 +919,98 @@ window.addEventListener("afterprint", () => {
   const watermark = document.getElementById("print-watermark");
   if (watermark) watermark.remove();
 });
+
+async function updateStorageInfo() {
+  const storageInfo = document.getElementById("storageInfo");
+  if (!storageInfo) return;
+
+  try {
+    const visitCount = await StorageManager.getData("visitCount");
+    const lastVisit = await StorageManager.getData("lastVisit");
+    const downloadCount = await StorageManager.getData("qrDownloadCount");
+    const notificationPerm = await StorageManager.getData("notificationPermission");
+
+    let lastVisitText = "Belum ada";
+    if (lastVisit) {
+      try {
+        const date = new Date(lastVisit);
+        lastVisitText = date.toLocaleString('id-ID', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (e) {
+        lastVisitText = "Invalid date";
+      }
+    }
+
+    const safeVisitCount = sanitizeHTML(String(visitCount || 0));
+    const safeLastVisit = sanitizeHTML(lastVisitText);
+    const safeDownloadCount = sanitizeHTML(String(downloadCount || 0));
+    const safeNotificationStatus = notificationPerm === "granted" ? "✅ Aktif" : "❌ Nonaktif";
+
+    const details = `
+      Kunjungan: ${safeVisitCount} kali<br>
+      Terakhir: ${safeLastVisit}<br>
+      Download QR: ${safeDownloadCount} kali<br>
+      Notifikasi: ${safeNotificationStatus}
+    `;
+
+    const storageDetails = document.getElementById("storageDetails");
+    if (storageDetails) {
+      storageDetails.innerHTML = details;
+    }
+  } catch (error) {
+    console.warn("Error updating storage info:", error);
+  }
+}
+
+let clickCount = 0;
+let clickTimer = null;
+document.addEventListener("click", (e) => {
+  if (e.clientX < 100 && e.clientY > window.innerHeight - 100) {
+    clickCount++;
+    clearTimeout(clickTimer);
+    
+    if (clickCount === 3) {
+      const storageInfo = document.getElementById("storageInfo");
+      if (storageInfo.style.display === "none") {
+        storageInfo.style.display = "block";
+        updateStorageInfo();
+        setTimeout(() => storageInfo.classList.add("show"), 10);
+      } else {
+        storageInfo.classList.remove("show");
+        setTimeout(() => storageInfo.style.display = "none", 300);
+      }
+      clickCount = 0;
+    }
+    
+    clickTimer = setTimeout(() => {
+      clickCount = 0;
+    }, 500);
+  }
+});
+
+setInterval(async () => {
+  if (NotificationManager.enabled) {
+    const daysElement = document.getElementById("days");
+    if (daysElement) {
+      const daysLeft = parseInt(daysElement.textContent);
+      if (!isNaN(daysLeft) && daysLeft >= 0 && daysLeft <= 7) {
+        await NotificationManager.sendCountdownNotification(daysLeft);
+      }
+    }
+  }
+  
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({
+      type: 'CHECK_DEADLINE'
+    });
+  }
+}, 5 * 60 * 1000);
+
+setInterval(async () => {
+  await ServiceWorkerManager.checkForUpdates();
+}, 60 * 60 * 1000);
