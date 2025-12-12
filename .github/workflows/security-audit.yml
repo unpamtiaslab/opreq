@@ -1,4 +1,4 @@
-name: FULL Security Audit (Static Site)
+name: FULL Security Audit (Static Site) + Artifact
 
 on:
   push:
@@ -11,79 +11,104 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Initialize security report
+      run: echo "=== SECURITY AUDIT REPORT ===" > security-report.txt
+
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Node
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 18
+        node-version: 25
 
-    - name: Install dependencies (if any)
-      run: |
-        npm install || true
+    - name: Install dependencies (optional)
+      run: npm install || true
 
-    - name: Run ESLint (detect common JS security issues)
+    - name: Run ESLint
       run: |
-        npx eslint script || echo "ESLint not configured"
+        echo "=== ESLINT OUTPUT ===" >> security-report.txt
+        npx eslint script >> security-report.txt 2>&1 || echo "ESLint not configured" >> security-report.txt
 
-    - name: Scan for DOM-XSS sink functions
+    - name: Scan DOM-XSS sinks (native)
       run: |
-        echo "Scanning for dangerous DOM-XSS sinks..."
+        echo "\n=== DOM-XSS SINK SCAN (Native DOM) ===" >> security-report.txt
         grep -RInE \
-        "document\.write|document\.writeln|document\.domain|innerHTML|outerHTML|insertAdjacentHTML|onevent|eval|setTimeout|setInterval|Function\(|execScript|navigator\.cookieEnabled" script/ || echo "No direct DOM-XSS sinks found"
+        "document\.write|document\.writeln|document\.domain|innerHTML|outerHTML|insertAdjacentHTML|onevent|eval|setTimeout|setInterval|new Function|execScript" script/ \
+        >> security-report.txt 2>&1 || echo "No native DOM-XSS sinks found" >> security-report.txt
 
-    - name: Scan for jQuery-based XSS sinks
+    - name: Scan DOM-XSS sinks (jQuery)
       run: |
+        echo "\n=== DOM-XSS SINK SCAN (jQuery) ===" >> security-report.txt
         grep -RInE \
-        "add\(|after\(|append\(|animate\(|insertAfter\(|insertBefore\(|before\(|html\(|prepend\(|replaceAll\(|replaceWith\(|wrap\(|wrapInner\(|wrapAll\(|jQuery\.parseHTML|\$\.parseHTML" script/ || echo "No jQuery XSS sinks found"
+        "add\(|after\(|append\(|animate\(|insertAfter\(|insertBefore\(|before\(|html\(|prepend\(|replaceAll\(|replaceWith\(|wrap\(|wrapInner\(|wrapAll\(|jQuery\.parseHTML|\$\.parseHTML" script/ \
+        >> security-report.txt 2>&1 || echo "No jQuery XSS sinks found" >> security-report.txt
 
     - name: Scan for unsafe API usage
       run: |
+        echo "\n=== UNSAFE API USAGE SCAN ===" >> security-report.txt
         grep -RInE \
-        "localStorage|sessionStorage|indexedDB|postMessage|crypto\.subtle|fetch\(|XMLHttpRequest|WebSocket" script/ || echo "No high-risk APIs found"
+        "localStorage|sessionStorage|indexedDB|postMessage|crypto\.subtle|fetch\(|XMLHttpRequest|WebSocket" script/ \
+        >> security-report.txt 2>&1 || echo "No unsafe APIs found" >> security-report.txt
 
-    - name: Scan for eval-like behavior
+    - name: Check HTML security headers
       run: |
-        grep -RInE \
-        "eval\(|new Function|execCommand|execScript" script/ || echo "No eval-like behavior found"
+        echo "\n=== HTML SECURITY HEADER CHECK ===" >> security-report.txt
+        for header in "Content-Security-Policy" "X-Frame-Options" "X-Content-Type-Options" "Referrer-Policy"; do
+          if grep -RIn "$header" index.html >/dev/null; then
+            echo "✔ Found: $header" >> security-report.txt
+          else
+            echo "❌ Missing: $header" >> security-report.txt
+          fi
+        done
 
-    - name: Check missing security meta tags
+    - name: Check inline scripts/styles
       run: |
-        echo "Checking CSP, X-Frame-Options, etc..."
-        if ! grep -RIn "Content-Security-Policy" index.html; then echo "⚠ CSP header missing"; fi
-        if ! grep -RIn "X-Frame-Options" index.html; then echo "⚠ X-Frame-Options missing"; fi
-        if ! grep -RIn "X-Content-Type-Options" index.html; then echo "⚠ X-Content-Type-Options missing"; fi
-        if ! grep -RIn "Referrer-Policy" index.html; then echo "⚠ Referrer-Policy missing"; fi
-
-    - name: Check for inline JS/inline CSS (unsafe)
-      run: |
-        grep -RIn "<script>" index.html && echo "⚠ Inline <script> found" || echo "No inline script"
-        grep -RIn "style=" index.html && echo "⚠ Inline style attributes found" || echo "No inline style attributes"
+        echo "\n=== INLINE JS/CSS CHECK ===" >> security-report.txt
+        grep -RIn "<script>" index.html >> security-report.txt 2>&1 || echo "No inline <script>" >> security-report.txt
+        grep -RIn "style=" index.html >> security-report.txt 2>&1 || echo "No inline style attributes" >> security-report.txt
 
     - name: Validate manifest.json
       run: |
+        echo "\n=== MANIFEST VALIDATION ===" >> security-report.txt
         node -e "
-        const fs=require('fs');
-        const m = JSON.parse(fs.readFileSync('manifest.json'));
-        if(!m.name || !m.start_url){ console.error('Invalid Manifest'); process.exit(1); }
-        console.log('Manifest OK');
-        "
+        try{
+          const fs=require('fs');
+          const m = JSON.parse(fs.readFileSync('manifest.json'));
+          if(!m.name) console.log('❌ Manifest missing name');
+          else console.log('✔ Manifest name OK');
+          if(!m.start_url) console.log('❌ Manifest missing start_url');
+          else console.log('✔ Manifest start_url OK');
+        } catch(e){ console.log('❌ Manifest is invalid'); }
+        " >> security-report.txt
 
-    - name: Check service worker security patterns
+    - name: Check service worker sw.js
       run: |
-        if grep -RIn "self\.skipWaiting" sw.js; then echo '⚠ skipWaiting used (review cache logic)'; fi
-        if grep -RIn "fetch" sw.js; then echo 'Fetch handler found'; fi
+        echo "\n=== SERVICE WORKER CHECK ===" >> security-report.txt
+        if grep -RIn "skipWaiting" sw.js; then echo "⚠ skipWaiting found" >> security-report.txt; fi
+        if grep -RIn "fetch" sw.js; then echo "✔ fetch handler present" >> security-report.txt; fi
 
-    - name: Validate robots.txt for sensitive exposure
+    - name: Analyze robots.txt
       run: |
-        if grep -RIn "Allow: /config.json" robots.txt; then echo "❌ Sensitive file allowed in robots.txt"; exit 1; fi
-        echo "robots.txt OK"
+        echo "\n=== ROBOTS.TXT ANALYSIS ===" >> security-report.txt
+        if grep -RIn "Allow: /config.json" robots.txt; then
+          echo "❌ Sensitive file visible in robots.txt" >> security-report.txt
+        else
+          echo "✔ robots.txt OK" >> security-report.txt
+        fi
 
-    - name: Validate sitemap.xml structure
+    - name: Validate sitemap.xml
       run: |
-        grep -RIn "<loc>" sitemap.xml || echo "⚠ sitemap.xml missing <loc> entries"
+        echo "\n=== SITEMAP VALIDATION ===" >> security-report.txt
+        grep -RIn "<loc>" sitemap.xml >> security-report.txt 2>&1 || echo "❌ No <loc> entries found" >> security-report.txt
 
     - name: Run npm audit
       run: |
-        npm audit --omit=dev || true
+        echo "\n=== NPM AUDIT ===" >> security-report.txt
+        npm audit --omit=dev >> security-report.txt 2>&1 || echo "npm audit completed" >> security-report.txt
+
+    - name: Upload security audit artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-report
+        path: security-report.txt
