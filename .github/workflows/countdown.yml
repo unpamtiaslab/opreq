@@ -53,6 +53,7 @@ jobs:
           if [ $DIFF -lt 0 ]; then
             echo "⏰ Deadline has passed!"
             echo "DEADLINE_PASSED=true" >> $GITHUB_ENV
+            echo "STATUS_MESSAGE=⚠️ Pendaftaran telah ditutup" >> $GITHUB_ENV
           else
             DAYS=$((DIFF / 86400))
             HOURS=$(((DIFF % 86400) / 3600))
@@ -61,15 +62,35 @@ jobs:
             echo "DEADLINE_PASSED=false" >> $GITHUB_ENV
             echo "DAYS_REMAINING=$DAYS" >> $GITHUB_ENV
             echo "HOURS_REMAINING=$HOURS" >> $GITHUB_ENV
+            echo "MINUTES_REMAINING=$MINUTES" >> $GITHUB_ENV
+            echo "STATUS_MESSAGE=⏳ Waktu tersisa: $DAYS hari, $HOURS jam, $MINUTES menit" >> $GITHUB_ENV
           fi
 
-      - name: Update README if deadline passed
-        if: env.DEADLINE_PASSED == 'true'
+      - name: Update deadline status file
         run: |
-          # Create or update status badge
-          echo "⚠️ Pendaftaran telah ditutup" > DEADLINE_STATUS.txt
+          # Create or update status file with current deadline status
+          echo "${{ env.STATUS_MESSAGE }}" > DEADLINE_STATUS.txt
+          echo "" >> DEADLINE_STATUS.txt
+          
+          # Waktu update dalam zona waktu Indonesia
+          echo "Last updated:" >> DEADLINE_STATUS.txt
+          echo "  WIB (UTC+7): $(TZ='Asia/Jakarta' date '+%Y-%m-%d %H:%M:%S')" >> DEADLINE_STATUS.txt
+          echo "  WITA (UTC+8): $(TZ='Asia/Makassar' date '+%Y-%m-%d %H:%M:%S')" >> DEADLINE_STATUS.txt
+          echo "  WIT (UTC+9): $(TZ='Asia/Jayapura' date '+%Y-%m-%d %H:%M:%S')" >> DEADLINE_STATUS.txt
+          echo "" >> DEADLINE_STATUS.txt
+          echo "Deadline passed: ${{ env.DEADLINE_PASSED }}" >> DEADLINE_STATUS.txt
+          
+          if [ "${{ env.DEADLINE_PASSED }}" = "false" ]; then
+            echo "" >> DEADLINE_STATUS.txt
+            echo "Sisa waktu:" >> DEADLINE_STATUS.txt
+            echo "  ${{ env.DAYS_REMAINING }} hari" >> DEADLINE_STATUS.txt
+            echo "  ${{ env.HOURS_REMAINING }} jam" >> DEADLINE_STATUS.txt
+            echo "  ${{ env.MINUTES_REMAINING }} menit" >> DEADLINE_STATUS.txt
+          fi
+          
+          cat DEADLINE_STATUS.txt
           
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add DEADLINE_STATUS.txt
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update: Deadline passed" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update: Deadline status at $(TZ='Asia/Jakarta' date '+%Y-%m-%d %H:%M:%S WIB')" && git push)
