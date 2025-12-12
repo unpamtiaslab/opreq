@@ -1,0 +1,89 @@
+name: FULL Security Audit (Static Site)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Install dependencies (if any)
+      run: |
+        npm install || true
+
+    - name: Run ESLint (detect common JS security issues)
+      run: |
+        npx eslint script || echo "ESLint not configured"
+
+    - name: Scan for DOM-XSS sink functions
+      run: |
+        echo "Scanning for dangerous DOM-XSS sinks..."
+        grep -RInE \
+        "document\.write|document\.writeln|document\.domain|innerHTML|outerHTML|insertAdjacentHTML|onevent|eval|setTimeout|setInterval|Function\(|execScript|navigator\.cookieEnabled" script/ || echo "No direct DOM-XSS sinks found"
+
+    - name: Scan for jQuery-based XSS sinks
+      run: |
+        grep -RInE \
+        "add\(|after\(|append\(|animate\(|insertAfter\(|insertBefore\(|before\(|html\(|prepend\(|replaceAll\(|replaceWith\(|wrap\(|wrapInner\(|wrapAll\(|jQuery\.parseHTML|\$\.parseHTML" script/ || echo "No jQuery XSS sinks found"
+
+    - name: Scan for unsafe API usage
+      run: |
+        grep -RInE \
+        "localStorage|sessionStorage|indexedDB|postMessage|crypto\.subtle|fetch\(|XMLHttpRequest|WebSocket" script/ || echo "No high-risk APIs found"
+
+    - name: Scan for eval-like behavior
+      run: |
+        grep -RInE \
+        "eval\(|new Function|execCommand|execScript" script/ || echo "No eval-like behavior found"
+
+    - name: Check missing security meta tags
+      run: |
+        echo "Checking CSP, X-Frame-Options, etc..."
+        if ! grep -RIn "Content-Security-Policy" index.html; then echo "⚠ CSP header missing"; fi
+        if ! grep -RIn "X-Frame-Options" index.html; then echo "⚠ X-Frame-Options missing"; fi
+        if ! grep -RIn "X-Content-Type-Options" index.html; then echo "⚠ X-Content-Type-Options missing"; fi
+        if ! grep -RIn "Referrer-Policy" index.html; then echo "⚠ Referrer-Policy missing"; fi
+
+    - name: Check for inline JS/inline CSS (unsafe)
+      run: |
+        grep -RIn "<script>" index.html && echo "⚠ Inline <script> found" || echo "No inline script"
+        grep -RIn "style=" index.html && echo "⚠ Inline style attributes found" || echo "No inline style attributes"
+
+    - name: Validate manifest.json
+      run: |
+        node -e "
+        const fs=require('fs');
+        const m = JSON.parse(fs.readFileSync('manifest.json'));
+        if(!m.name || !m.start_url){ console.error('Invalid Manifest'); process.exit(1); }
+        console.log('Manifest OK');
+        "
+
+    - name: Check service worker security patterns
+      run: |
+        if grep -RIn "self\.skipWaiting" sw.js; then echo '⚠ skipWaiting used (review cache logic)'; fi
+        if grep -RIn "fetch" sw.js; then echo 'Fetch handler found'; fi
+
+    - name: Validate robots.txt for sensitive exposure
+      run: |
+        if grep -RIn "Allow: /config.json" robots.txt; then echo "❌ Sensitive file allowed in robots.txt"; exit 1; fi
+        echo "robots.txt OK"
+
+    - name: Validate sitemap.xml structure
+      run: |
+        grep -RIn "<loc>" sitemap.xml || echo "⚠ sitemap.xml missing <loc> entries"
+
+    - name: Run npm audit
+      run: |
+        npm audit --omit=dev || true
