@@ -6,6 +6,40 @@
 
 > Website rekrutmen Asisten Laboratorium TI UNPAM dengan fitur modern, aman, dan SEO-optimized
 
+---
+
+## 📑 Daftar Isi
+
+- [🌐 Live Demo](#-live-demo)
+- [✨ Features](#-features)
+  - [🔒 Security](#-security)
+  - [🎨 UI/UX](#-uiux)
+  - [🚀 Functionality](#-functionality)
+  - [📊 SEO & Marketing](#-seo--marketing)
+  - [🤖 Automation (GitHub Actions)](#-automation-github-actions)
+- [📁 Project Structure](#-project-structure)
+- [🛠️ Quick Start](#️-quick-start)
+  - [Local Development](#local-development)
+  - [Configuration](#configuration)
+- [🚀 Deployment](#-deployment)
+  - [GitHub Pages (Automated)](#github-pages-automated)
+  - [Manual Deploy](#manual-deploy)
+- [🤖 GitHub Actions](#-github-actions)
+  - [Available Workflows](#available-workflows)
+- [📊 SEO Optimization](#-seo-optimization)
+- [🔒 Security](#-security-1)
+- [📱 Browser Support](#-browser-support)
+- [🎯 Performance](#-performance)
+- [📝 Contributing](#-contributing)
+- [📄 License](#-license)
+- [🙏 Acknowledgments](#-acknowledgments)
+- [📊 Project Stats](#-project-stats)
+- [Problem Solutions](#problem-solutions)
+  - [1. Notification doesn't show up](#1-notification-doesnt-show-up)
+  - [2. Notification doesn't show up by cookies](#2-notification-doesnt-show-up-by-cookies)
+
+---
+
 ## 🌐 Live Demo
 
 **URL:** [https://unpamtiaslab.github.io/opreq/](https://unpamtiaslab.github.io/opreq/)
@@ -253,21 +287,6 @@ Contributions welcome! Please follow these steps:
 
 ---
 
-## 📞 Contact
-
-**ASLAB TI UNPAM**
-
-- 📱 Instagram: [@aslabti_unpam](https://instagram.com/aslabti_unpam)
-- 🌐 Website: [aslab.octavianaanugrah.com](https://aslab.octavianaanugrah.com)
-- 📧 Email: Via contact persons in website
-
-**Contact Persons:**
-- MARSEL: 0856-9236-9200
-- NATHAN: 0851-7672-7250
-- SYAEFUL: 0813-1985-1597
-
----
-
 ## 📄 License
 
 This project is for internal use by ASLAB TI UNPAM.
@@ -292,6 +311,38 @@ This project is for internal use by ASLAB TI UNPAM.
 
 ---
 
+## Problem Solutions
+### 1. Notification doesn't show up
+[![First](./images/error_in_computer.png)](./images/error_in_computer.png)
+
+how to fix:
+- Check the browser console (F12)
+- Go to Applications
+- Tap Storage
+- Clear site data
+
+Solutions:
+- Make sure JavaScript is enabled in your browser settings.
+- Clear browser cache and reload the page.
+- Try accessing the site in a different browser to rule out browser-specific issues.
+- Check the browser console (F12) for any JavaScript errors that might prevent the notification from displaying.
+- Ensure that any ad-blockers or browser extensions are not blocking site scripts.
+
+### 2. Notification doesn't show up by cookies
+[![Second](./images/error_in_cookies.png)](./images/error_in_cookies.png)
+
+how to fix:
+- Look at the top right of the address bar
+- Click the lock icon or `i` icon
+- Go to Cookies
+- Remove the cookies for this site
+- don't forget to reload the page and Notifications `Allowed` or `Allow`
+
+Solutions:
+- Clear cookies for the site by clicking the lock icon in the address bar, navigating to Cookies, and removing them.
+- Ensure that your browser is set to accept cookies from the site.
+---
+
 **Made with ❤️ by ASLAB TI UNPAM**
 
-*Last Updated: December 10, 2025*
+*Last Updated: December 12, 2025*

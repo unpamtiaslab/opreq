@@ -114,6 +114,7 @@ const NotificationManager = {
   async requestPermission() {
     if (!("Notification" in window)) {
       console.warn("Browser tidak support notifikasi");
+      showError("❌ Browser Anda tidak mendukung notifikasi");
       return false;
     }
 
@@ -124,21 +125,38 @@ const NotificationManager = {
       return true;
     }
 
-    if (Notification.permission !== "denied") {
+    if (Notification.permission === "denied") {
+      this.permission = "denied";
+      this.enabled = false;
+      await StorageManager.saveData("notificationPermission", "denied");
+
+      const instructions = this.getUnblockInstructions();
+      showError(`❌ Notifikasi diblokir! ${instructions}`);
+
+      this.showUnblockModal();
+      return false;
+    }
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       const permission = await Notification.requestPermission();
       this.permission = permission;
       this.enabled = permission === "granted";
       await StorageManager.saveData("notificationPermission", permission);
 
       if (permission === "granted") {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        if (
+          "serviceWorker" in navigator &&
+          navigator.serviceWorker.controller
+        ) {
           navigator.serviceWorker.controller.postMessage({
-            type: 'SCHEDULE_NOTIFICATION',
+            type: "SCHEDULE_NOTIFICATION",
             payload: {
               title: "🎉 Notifikasi Aktif!",
               body: "Anda akan mendapat pengingat countdown deadline pendaftaran ASLAB walaupun browser ditutup!",
-              delay: 1000
-            }
+              delay: 1000,
+            },
           });
         } else {
           this.sendNotification(
@@ -146,12 +164,147 @@ const NotificationManager = {
             "Anda akan mendapat pengingat countdown deadline pendaftaran ASLAB"
           );
         }
+        return true;
+      } else if (permission === "denied") {
+        const instructions = this.getUnblockInstructions();
+        showError(`❌ Notifikasi diblokir! ${instructions}`);
+        this.showUnblockModal();
+        return false;
+      } else {
+        console.log("User dismissed notification permission");
+        return false;
       }
+    } catch (error) {
+      console.error("Error requesting notification permission:", error);
+      showError("❌ Gagal meminta izin notifikasi. Silakan coba lagi.");
+      return false;
+    }
+  },
 
-      return permission === "granted";
+  getUnblockInstructions() {
+    const userAgent = navigator.userAgent.toLowerCase();
+
+    if (userAgent.includes("edg")) {
+      return "Klik ikon 🔒 di address bar → Site permissions → Notifications → Allow";
+    } else if (userAgent.includes("chrome")) {
+      return "Klik ikon 🔒 di address bar → Site settings → Notifications → Allow";
+    } else if (userAgent.includes("firefox")) {
+      return "Klik ikon ℹ️ di address bar → Permissions → Notifications → Allow";
+    } else if (userAgent.includes("safari")) {
+      return "Safari → Preferences → Websites → Notifications → Allow";
+    } else {
+      return 'Buka pengaturan browser → Cari "Notifications" → Izinkan untuk situs ini';
+    }
+  },
+
+  showUnblockModal() {
+    const existingModal = document.querySelector(".unblock-modal");
+    if (existingModal) existingModal.remove();
+
+    const modal = document.createElement("div");
+    modal.className = "notification-modal unblock-modal";
+
+    const userAgent = String(navigator.userAgent || "")
+      .toLowerCase()
+      .substring(0, 500);
+
+    let browserName = "Browser";
+    let detailedSteps = "";
+
+    if (userAgent.includes("edg")) {
+      browserName = "Microsoft Edge";
+      detailedSteps = `
+        <ol style="text-align: left; padding-left: 20px;">
+          <li>Klik ikon <strong>🔒 (gembok)</strong> di sebelah kiri address bar</li>
+          <li>Klik <strong>"Site permissions"</strong></li>
+          <li>Cari <strong>"Notifications"</strong></li>
+          <li>Ubah dari "Block" menjadi <strong>"Allow"</strong></li>
+          <li>Refresh halaman ini (F5)</li>
+          <li>Klik tombol "Izinkan" lagi</li>
+        </ol>
+      `;
+    } else if (userAgent.includes("chrome")) {
+      browserName = "Google Chrome";
+      detailedSteps = `
+        <ol style="text-align: left; padding-left: 20px;">
+          <li>Klik ikon <strong>🔒 (gembok)</strong> di address bar</li>
+          <li>Klik <strong>"Site settings"</strong></li>
+          <li>Scroll ke <strong>"Notifications"</strong></li>
+          <li>Pilih <strong>"Allow"</strong></li>
+          <li>Refresh halaman (F5)</li>
+          <li>Klik tombol "Izinkan" lagi</li>
+        </ol>
+      `;
+    } else if (userAgent.includes("firefox")) {
+      browserName = "Mozilla Firefox";
+      detailedSteps = `
+        <ol style="text-align: left; padding-left: 20px;">
+          <li>Klik ikon <strong>ℹ️</strong> di address bar</li>
+          <li>Klik <strong>"Permissions"</strong></li>
+          <li>Cari <strong>"Receive Notifications"</strong></li>
+          <li>Uncheck "Use Default" dan pilih <strong>"Allow"</strong></li>
+          <li>Refresh halaman (F5)</li>
+        </ol>
+      `;
+    } else {
+      browserName = "Browser Anda";
+      detailedSteps = `
+        <ol style="text-align: left; padding-left: 20px;">
+          <li>Klik ikon gembok/info di address bar</li>
+          <li>Cari pengaturan "Notifications" atau "Notifikasi"</li>
+          <li>Ubah menjadi "Allow" atau "Izinkan"</li>
+          <li>Refresh halaman ini</li>
+        </ol>
+      `;
     }
 
-    return false;
+    const modalContent = document.createElement("div");
+    modalContent.className = "notification-modal-content";
+    modalContent.style.maxWidth = "500px";
+
+    const icon = document.createElement("div");
+    icon.className = "notification-modal-icon";
+    icon.style.fontSize = "60px";
+    icon.textContent = "🚫";
+    modalContent.appendChild(icon);
+
+    const title = document.createElement("h3");
+    title.style.color = "#e74c3c";
+    title.textContent = "Notifikasi Diblokir";
+    modalContent.appendChild(title);
+
+    const desc = document.createElement("p");
+    desc.style.marginBottom = "20px";
+    desc.textContent = `Notifikasi untuk website ini sudah diblokir di ${sanitizeHTML(
+      browserName
+    )}. Untuk mengaktifkan kembali:`;
+    modalContent.appendChild(desc);
+
+    const stepsDiv = document.createElement("div");
+    stepsDiv.innerHTML = detailedSteps;
+    modalContent.appendChild(stepsDiv);
+
+    const btnContainer = document.createElement("div");
+    btnContainer.className = "notification-modal-buttons";
+    btnContainer.style.marginTop = "20px";
+
+    const btn = document.createElement("button");
+    btn.id = "closeUnblockModal";
+    btn.className = "btn-allow";
+    btn.style.width = "100%";
+    btn.textContent = "✅ Saya Mengerti";
+    btnContainer.appendChild(btn);
+
+    modalContent.appendChild(btnContainer);
+    modal.appendChild(modalContent);
+
+    document.body.appendChild(modal);
+    setTimeout(() => modal.classList.add("show"), 100);
+
+    btn.addEventListener("click", () => {
+      modal.classList.remove("show");
+      setTimeout(() => modal.remove(), 300);
+    });
   },
 
   async checkPermission() {
@@ -176,7 +329,9 @@ const NotificationManager = {
     const safeBody = String(body).substring(0, 500);
 
     const notificationKey = `${safeTitle}-${safeBody}`;
-    const lastSent = this.notificationsSent.find((n) => n.key === notificationKey);
+    const lastSent = this.notificationsSent.find(
+      (n) => n.key === notificationKey
+    );
 
     if (lastSent && Date.now() - lastSent.timestamp < 3600000) {
       return;
@@ -216,10 +371,31 @@ const NotificationManager = {
     if (!this.enabled) return;
 
     const notificationConfig = [
-      { days: 7, title: "⚠️ 1 Minggu Lagi!", message: "Pendaftaran ASLAB ditutup dalam 7 hari" },
-      { days: 3, title: "🔔 3 Hari Lagi!", message: "Segera daftar! Hanya 3 hari tersisa" },
-      { days: 1, title: "⏰ Besok Terakhir!", message: "Ini hari terakhir pendaftaran ASLAB!" },
-      { days: 0, title: "🚨 Hari Ini Deadline!", message: "Pendaftaran ASLAB ditutup hari ini!" },
+      {
+        days: 7,
+        title: "⚠️ 1 Minggu Lagi!",
+        message: "Pendaftaran ASLAB ditutup dalam 7 hari",
+      },
+      {
+        days: 5,
+        title: "⏳ 5 Hari Lagi!",
+        message: "Jangan lupa daftar! Hanya 5 hari tersisa",
+      },
+      {
+        days: 3,
+        title: "🔔 3 Hari Lagi!",
+        message: "Segera daftar! Hanya 3 hari tersisa",
+      },
+      {
+        days: 1,
+        title: "⏰ Besok Terakhir!",
+        message: "Ini hari terakhir pendaftaran ASLAB!",
+      },
+      {
+        days: 0,
+        title: "🚨 Hari Ini Deadline!",
+        message: "Pendaftaran ASLAB ditutup hari ini!",
+      },
     ];
 
     const config = notificationConfig.find((c) => c.days === daysLeft);
@@ -230,14 +406,17 @@ const NotificationManager = {
       const today = new Date().toDateString();
 
       if (!lastNotification || lastNotification !== today) {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        if (
+          "serviceWorker" in navigator &&
+          navigator.serviceWorker.controller
+        ) {
           navigator.serviceWorker.controller.postMessage({
-            type: 'SCHEDULE_NOTIFICATION',
+            type: "SCHEDULE_NOTIFICATION",
             payload: {
               title: config.title,
               body: config.message,
-              delay: 0
-            }
+              delay: 0,
+            },
           });
         } else {
           this.sendNotification(config.title, config.message, {
@@ -252,53 +431,102 @@ const NotificationManager = {
 
 const ServiceWorkerManager = {
   registration: null,
-  
+
   async register() {
-    if (!('serviceWorker' in navigator)) {
-      console.warn('Service Worker not supported');
+    if (!("serviceWorker" in navigator)) {
+      console.warn("Service Worker not supported");
       return false;
     }
 
     try {
-      this.registration = await navigator.serviceWorker.register('./sw.js', {
-        scope: './'
+      this.registration = await navigator.serviceWorker.register("./sw.js", {
+        scope: "./",
       });
 
-      console.log('✅ Service Worker registered:', this.registration.scope);
+      console.log("✅ Service Worker registered:", this.registration.scope);
 
-      this.registration.addEventListener('updatefound', () => {
+      this.registration.addEventListener("updatefound", () => {
         const newWorker = this.registration.installing;
-        console.log('🔄 Service Worker update found');
+        console.log("🔄 Service Worker update found");
 
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('🆕 New Service Worker available');
+        newWorker.addEventListener("statechange", () => {
+          if (
+            newWorker.state === "installed" &&
+            navigator.serviceWorker.controller
+          ) {
+            console.log("🆕 New Service Worker available");
           }
         });
       });
 
-      if ('periodicSync' in this.registration) {
+      await navigator.serviceWorker.ready;
+
+      if ("periodicSync" in this.registration) {
         try {
-          await this.registration.periodicSync.register('check-deadline', {
-            minInterval: 6 * 60 * 60 * 1000
+          await this.registration.periodicSync.register("check-deadline", {
+            minInterval: 12 * 60 * 60 * 1000,
           });
-          console.log('✅ Periodic background sync registered');
+          console.log("✅ Periodic background sync registered");
         } catch (error) {
-          console.warn('Periodic sync not available:', error);
+          console.warn("Periodic sync not available:", error.message);
         }
+      } else {
+        console.log(
+          "ℹ️ Periodic background sync not supported by this browser"
+        );
       }
 
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        console.log('📨 Message from SW:', event.data);
-        
-        if (event.data.type === 'COUNTDOWN_UPDATE') {
-          console.log('Countdown update:', event.data.daysLeft);
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        console.log("📨 Message from SW:", event.data);
+
+        if (event.data.type === "COUNTDOWN_UPDATE") {
+          console.log("🔄 Countdown update:", event.data.daysLeft, "days left");
+        } else if (event.data.type === "COUNTDOWN_ENDED") {
+          console.log("🏁 Countdown ended from SW");
+          const countdownEl = document.getElementById("countdown");
+          if (countdownEl && event.data.ended) {
+            countdownEl.innerHTML =
+              '<p style="color: #e74c3c; font-weight: bold;">Pendaftaran Ditutup</p>';
+
+            const qrImage = document.getElementById("qrImage");
+            const qrLoading = document.getElementById("qrLoading");
+            if (qrImage) {
+              qrImage.style.display = "none";
+              qrImage.src = "";
+            }
+            if (qrLoading) {
+              qrLoading.innerHTML =
+                '<p style="color: #e74c3c; font-weight: bold;">❌ Pendaftaran Sudah Ditutup</p>';
+              qrLoading.style.display = "block";
+            }
+
+            const registerBtn = document.getElementById("registerBtn");
+            const saveQRBtn = document.getElementById("saveQRBtn");
+            const copyLinkBtn = document.getElementById("copyLinkBtn");
+
+            if (registerBtn) {
+              registerBtn.style.pointerEvents = "none";
+              registerBtn.style.opacity = "0.5";
+              registerBtn.href = "#";
+              registerBtn.innerHTML = "<span>🔒</span> PENDAFTARAN DITUTUP";
+            }
+            if (saveQRBtn) {
+              saveQRBtn.disabled = true;
+              saveQRBtn.style.opacity = "0.5";
+              saveQRBtn.innerHTML = "<span>🔒</span> TIDAK TERSEDIA";
+            }
+            if (copyLinkBtn) {
+              copyLinkBtn.disabled = true;
+              copyLinkBtn.style.opacity = "0.5";
+              copyLinkBtn.innerHTML = "<span>🔒</span> TIDAK TERSEDIA";
+            }
+          }
         }
       });
 
       return true;
     } catch (error) {
-      console.error('❌ Service Worker registration failed:', error);
+      console.error("❌ Service Worker registration failed:", error);
       return false;
     }
   },
@@ -312,7 +540,7 @@ const ServiceWorkerManager = {
   async unregister() {
     if (this.registration) {
       await this.registration.unregister();
-      console.log('Service Worker unregistered');
+      console.log("Service Worker unregistered");
     }
   },
 
@@ -320,48 +548,47 @@ const ServiceWorkerManager = {
     if (navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage(message);
     }
-  }
+  },
 };
 
-
 const sanitizeHTML = (str) => {
-  if (!str) return '';
-  
+  if (!str) return "";
+
   const text = String(str).substring(0, 10000);
-  
+
   const temp = document.createElement("div");
   temp.textContent = text;
-  
+
   let sanitized = temp.innerHTML;
-  
-  sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, '');
-  
+
+  sanitized = sanitized.replace(/<script[^>]*>.*?<\/script>/gi, "");
+
   return sanitized;
 };
 
 const isValidURL = (url) => {
   try {
-    if (!url || typeof url !== 'string') return false;
-    
+    if (!url || typeof url !== "string") return false;
+
     const lowerUrl = url.toLowerCase().trim();
-    const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:'];
-    if (dangerousProtocols.some(proto => lowerUrl.startsWith(proto))) {
+    const dangerousProtocols = ["javascript:", "data:", "vbscript:", "file:"];
+    if (dangerousProtocols.some((proto) => lowerUrl.startsWith(proto))) {
       return false;
     }
-    
+
     const urlObj = new URL(url);
-    
+
     if (!["http:", "https:"].includes(urlObj.protocol)) {
       return false;
     }
-    
+
     const hostname = urlObj.hostname.toLowerCase();
-    const privateHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1'];
+    const privateHosts = ["localhost", "127.0.0.1", "0.0.0.0", "::1"];
     if (privateHosts.includes(hostname)) {
-      console.warn('Private/localhost URLs not allowed');
+      console.warn("Private/localhost URLs not allowed");
       return false;
     }
-    
+
     return true;
   } catch {
     return false;
@@ -429,9 +656,11 @@ const showSuccess = (message) => {
 
 (async function init() {
   const swRegistered = await ServiceWorkerManager.register();
-  
+
   if (swRegistered) {
-    console.log('🎉 Service Worker aktif - Notifikasi akan tetap muncul walaupun browser ditutup!');
+    console.log(
+      "🎉 Service Worker aktif - Notifikasi akan tetap muncul walaupun browser ditutup!"
+    );
   }
 
   await StorageManager.init();
@@ -462,20 +691,36 @@ const showSuccess = (message) => {
 
       setTimeout(() => notifModal.classList.add("show"), 100);
 
-      document.getElementById("allowNotification").addEventListener("click", async () => {
-        const allowed = await NotificationManager.requestPermission();
-        notifModal.classList.remove("show");
-        setTimeout(() => notifModal.remove(), 300);
-        if (allowed) {
-          showSuccess("✅ Notifikasi berhasil diaktifkan!");
-        }
-      });
+      document
+        .getElementById("allowNotification")
+        .addEventListener("click", async () => {
+          const btn = document.getElementById("allowNotification");
+          btn.disabled = true;
+          btn.textContent = "⏳ Memproses...";
 
-      document.getElementById("denyNotification").addEventListener("click", () => {
-        notifModal.classList.remove("show");
-        setTimeout(() => notifModal.remove(), 300);
-        StorageManager.saveData("notificationDenied", true);
-      });
+          const allowed = await NotificationManager.requestPermission();
+
+          if (allowed || Notification.permission === "denied") {
+            notifModal.classList.remove("show");
+            setTimeout(() => notifModal.remove(), 300);
+          } else {
+            btn.disabled = false;
+            btn.textContent = "✅ Izinkan";
+            // btn.innerHTML = '✅ Izinkan';
+          }
+
+          if (allowed) {
+            showSuccess("✅ Notifikasi berhasil diaktifkan!");
+          }
+        });
+
+      document
+        .getElementById("denyNotification")
+        .addEventListener("click", () => {
+          notifModal.classList.remove("show");
+          setTimeout(() => notifModal.remove(), 300);
+          StorageManager.saveData("notificationDenied", true);
+        });
     }, 3000);
   }
 })();
@@ -530,10 +775,12 @@ fetch("config.json")
         url = "https://wa.me/" + encodeURIComponent(num);
       }
 
-      const safeUrl = isValidURL(url) ? url : '#';
-      
+      const safeUrl = isValidURL(url) ? url : "#";
+
       footerCapt.innerHTML += `
-                    <a href="${sanitizeHTML(safeUrl)}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;">
+                    <a href="${sanitizeHTML(
+                      safeUrl
+                    )}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;">
                         ${safeIcon} ${safeText}
                     </a>
                     &nbsp;&nbsp;|&nbsp;&nbsp;
@@ -561,8 +808,8 @@ fetch("config.json")
         waLink = "#";
       }
 
-      const safeWaLink = isValidURL(waLink) ? sanitizeHTML(waLink) : '#';
-      
+      const safeWaLink = isValidURL(waLink) ? sanitizeHTML(waLink) : "#";
+
       contactList.innerHTML += `
                     <div class="contact-item">
                         <strong>${safeName}</strong><br>
@@ -598,8 +845,8 @@ fetch("config.json")
       if (registerBtn && isValidURL(data.text_to_qr)) {
         registerBtn.href = data.text_to_qr;
       } else {
-        console.error('Invalid registration URL');
-        if (registerBtn) registerBtn.href = '#';
+        console.error("Invalid registration URL");
+        if (registerBtn) registerBtn.href = "#";
       }
     } else {
       showError("URL pendaftaran tidak valid");
@@ -783,10 +1030,59 @@ function initCountdown(deadlineData) {
   const isoDate = `${year}-${month}-${day.padStart(2, "0")}`;
 
   const deadline = new Date(`${isoDate}T${deadlineTime}`).getTime();
+  let countdownInterval = null;
 
   async function updateCountdown() {
     const now = new Date().getTime();
     const distance = deadline - now;
+
+    if (distance < 0) {
+      document.getElementById("countdown").innerHTML =
+        '<p style="color: #e74c3c; font-weight: bold;">Pendaftaran Ditutup</p>';
+
+      const qrImage = document.getElementById("qrImage");
+      const qrLoading = document.getElementById("qrLoading");
+      if (qrImage) {
+        qrImage.style.display = "none";
+        qrImage.src = "";
+      }
+      if (qrLoading) {
+        qrLoading.innerHTML =
+          '<p style="color: #e74c3c; font-weight: bold;">❌ Pendaftaran Sudah Ditutup</p>';
+        qrLoading.style.display = "block";
+      }
+
+      const registerBtn = document.getElementById("registerBtn");
+      if (registerBtn) {
+        registerBtn.style.pointerEvents = "none";
+        registerBtn.style.opacity = "0.5";
+        registerBtn.style.cursor = "not-allowed";
+        registerBtn.href = "#";
+        registerBtn.innerHTML = "<span>🔒</span> PENDAFTARAN DITUTUP";
+      }
+
+      const saveQRBtn = document.getElementById("saveQRBtn");
+      if (saveQRBtn) {
+        saveQRBtn.disabled = true;
+        saveQRBtn.style.opacity = "0.5";
+        saveQRBtn.style.cursor = "not-allowed";
+        saveQRBtn.innerHTML = "<span>🔒</span> TIDAK TERSEDIA";
+      }
+
+      const copyLinkBtn = document.getElementById("copyLinkBtn");
+      if (copyLinkBtn) {
+        copyLinkBtn.disabled = true;
+        copyLinkBtn.style.opacity = "0.5";
+        copyLinkBtn.style.cursor = "not-allowed";
+        copyLinkBtn.innerHTML = "<span>🔒</span> TIDAK TERSEDIA";
+      }
+
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        console.log("⏹️ Countdown stopped - deadline passed");
+      }
+      return;
+    }
 
     const daysLeft = Math.floor(distance / (1000 * 60 * 60 * 24));
 
@@ -794,20 +1090,16 @@ function initCountdown(deadlineData) {
       await NotificationManager.sendCountdownNotification(daysLeft);
     }
 
-    if (distance < 0) {
-      document.getElementById("countdown").innerHTML =
-        '<p style="color: #e74c3c; font-weight: bold;">Pendaftaran Ditutup</p>';
-      return;
-    }
-
-    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
     const hours = Math.floor(
       (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
     );
     const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-    document.getElementById("days").textContent = String(days).padStart(2, "0");
+    document.getElementById("days").textContent = String(daysLeft).padStart(
+      2,
+      "0"
+    );
     document.getElementById("hours").textContent = String(hours).padStart(
       2,
       "0"
@@ -823,7 +1115,57 @@ function initCountdown(deadlineData) {
   }
 
   updateCountdown();
-  setInterval(updateCountdown, 1000);
+  countdownInterval = setInterval(updateCountdown, 1000);
+}
+
+if (document.getElementById("countdown")) {
+  const notifBtn = document.createElement("button");
+  notifBtn.id = "notificationSettingsBtn";
+  notifBtn.className = "notification-settings-btn";
+  notifBtn.innerHTML = "🔔 Pengaturan Notifikasi";
+  notifBtn.style.cssText = `
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    z-index: 999;
+    transition: all 0.3s ease;
+    font-size: 14px;
+  `;
+
+  notifBtn.addEventListener("mouseenter", () => {
+    notifBtn.style.transform = "translateY(-2px)";
+    notifBtn.style.boxShadow = "0 6px 20px rgba(102, 126, 234, 0.6)";
+  });
+
+  notifBtn.addEventListener("mouseleave", () => {
+    notifBtn.style.transform = "translateY(0)";
+    notifBtn.style.boxShadow = "0 4px 15px rgba(102, 126, 234, 0.4)";
+  });
+
+  notifBtn.addEventListener("click", async () => {
+    const permission = Notification.permission;
+
+    if (permission === "granted") {
+      showSuccess("✅ Notifikasi sudah aktif!");
+    } else if (permission === "denied") {
+      NotificationManager.showUnblockModal();
+    } else {
+      const allowed = await NotificationManager.requestPermission();
+      if (allowed) {
+        showSuccess("✅ Notifikasi berhasil diaktifkan!");
+      }
+    }
+  });
+
+  document.body.appendChild(notifBtn);
 }
 
 document.querySelectorAll(".faq-question").forEach((button) => {
@@ -845,7 +1187,9 @@ document.querySelectorAll(".faq-question").forEach((button) => {
 
 const shareData = {
   title: sanitizeHTML("Open Recruitment ASLAB"),
-  text: sanitizeHTML("🎓 Open Recruitment Asisten Laboratorium! Kesempatan emas untuk mengembangkan skill dan pengalaman. Daftar sekarang!"),
+  text: sanitizeHTML(
+    "🎓 Open Recruitment Asisten Laboratorium! Kesempatan emas untuk mengembangkan skill dan pengalaman. Daftar sekarang!"
+  ),
   url: window.location.origin + window.location.pathname,
 };
 
@@ -928,18 +1272,20 @@ async function updateStorageInfo() {
     const visitCount = await StorageManager.getData("visitCount");
     const lastVisit = await StorageManager.getData("lastVisit");
     const downloadCount = await StorageManager.getData("qrDownloadCount");
-    const notificationPerm = await StorageManager.getData("notificationPermission");
+    const notificationPerm = await StorageManager.getData(
+      "notificationPermission"
+    );
 
     let lastVisitText = "Belum ada";
     if (lastVisit) {
       try {
         const date = new Date(lastVisit);
-        lastVisitText = date.toLocaleString('id-ID', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
+        lastVisitText = date.toLocaleString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
         });
       } catch (e) {
         lastVisitText = "Invalid date";
@@ -949,7 +1295,8 @@ async function updateStorageInfo() {
     const safeVisitCount = sanitizeHTML(String(visitCount || 0));
     const safeLastVisit = sanitizeHTML(lastVisitText);
     const safeDownloadCount = sanitizeHTML(String(downloadCount || 0));
-    const safeNotificationStatus = notificationPerm === "granted" ? "✅ Aktif" : "❌ Nonaktif";
+    const safeNotificationStatus =
+      notificationPerm === "granted" ? "✅ Aktif" : "❌ Nonaktif";
 
     const details = `
       Kunjungan: ${safeVisitCount} kali<br>
@@ -973,7 +1320,7 @@ document.addEventListener("click", (e) => {
   if (e.clientX < 100 && e.clientY > window.innerHeight - 100) {
     clickCount++;
     clearTimeout(clickTimer);
-    
+
     if (clickCount === 3) {
       const storageInfo = document.getElementById("storageInfo");
       if (storageInfo.style.display === "none") {
@@ -982,11 +1329,11 @@ document.addEventListener("click", (e) => {
         setTimeout(() => storageInfo.classList.add("show"), 10);
       } else {
         storageInfo.classList.remove("show");
-        setTimeout(() => storageInfo.style.display = "none", 300);
+        setTimeout(() => (storageInfo.style.display = "none"), 300);
       }
       clickCount = 0;
     }
-    
+
     clickTimer = setTimeout(() => {
       clickCount = 0;
     }, 500);
@@ -1003,10 +1350,10 @@ setInterval(async () => {
       }
     }
   }
-  
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
     navigator.serviceWorker.controller.postMessage({
-      type: 'CHECK_DEADLINE'
+      type: "CHECK_DEADLINE",
     });
   }
 }, 5 * 60 * 1000);
