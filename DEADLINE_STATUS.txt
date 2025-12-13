@@ -1,13 +1,13 @@
-⏳ Waktu tersisa: 6 hari, 11 jam, 31 menit
+⏳ Waktu tersisa: 6 hari, 10 jam, 36 menit
 
 Last updated:
-  WIB (UTC+7): 2025-12-13 19:28:34
-  WITA (UTC+8): 2025-12-13 20:28:34
-  WIT (UTC+9): 2025-12-13 21:28:34
+  WIB (UTC+7): 2025-12-13 20:23:05
+  WITA (UTC+8): 2025-12-13 21:23:05
+  WIT (UTC+9): 2025-12-13 22:23:05
 
 Deadline passed: false
 
 Sisa waktu:
   6 hari
-  11 jam
-  31 menit
+  10 jam
+  36 menit
