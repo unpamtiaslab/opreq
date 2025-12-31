@@ -1,8 +1,8 @@
 ⚠️ Pendaftaran telah ditutup
 
 Last updated:
-  WIB (UTC+7): 2025-12-31 18:14:34
-  WITA (UTC+8): 2025-12-31 19:14:34
-  WIT (UTC+9): 2025-12-31 20:14:34
+  WIB (UTC+7): 2025-12-31 19:31:43
+  WITA (UTC+8): 2025-12-31 20:31:43
+  WIT (UTC+9): 2025-12-31 21:31:43
 
 Deadline passed: true
