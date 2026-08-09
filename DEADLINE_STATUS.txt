@@ -1,8 +1,8 @@
 ⚠️ Pendaftaran telah ditutup
 
 Last updated:
-  WIB (UTC+7): 2026-08-10 05:22:33
-  WITA (UTC+8): 2026-08-10 06:22:33
-  WIT (UTC+9): 2026-08-10 07:22:33
+  WIB (UTC+7): 2026-08-10 06:23:44
+  WITA (UTC+8): 2026-08-10 07:23:44
+  WIT (UTC+9): 2026-08-10 08:23:44
 
 Deadline passed: true
